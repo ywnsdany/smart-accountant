@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useAppStore } from '@/stores/app-store';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/app-sidebar';
@@ -8,6 +9,7 @@ import { DashboardPage } from '@/components/dashboard/dashboard-page';
 import { ExpensesPage } from '@/components/expenses/expenses-page';
 import { InsightsPage } from '@/components/insights/insights-page';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useSeedData } from '@/hooks/use-expenses';
 
 const pageComponents = {
   dashboard: DashboardPage,
@@ -15,15 +17,14 @@ const pageComponents = {
   insights: InsightsPage,
 };
 
-const pageTitles = {
-  dashboard: 'لوحة التحكم',
-  expenses: 'المصاريف',
-  insights: 'التحليل الذكي',
-};
-
 export default function Home() {
   const { currentPage } = useAppStore();
   const PageComponent = pageComponents[currentPage];
+  const seedMutation = useSeedData();
+
+  useEffect(() => {
+    seedMutation.mutate();
+  }, []);
 
   return (
     <SidebarProvider>
