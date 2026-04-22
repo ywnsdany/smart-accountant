@@ -34,13 +34,13 @@ export default function Home() {
 
   useEffect(() => {
     if (seed.isSuccess) {
-      const timer = setTimeout(dismissSplash, 2000);
+      const timer = setTimeout(dismissSplash, 5500);
       return () => clearTimeout(timer);
     }
   }, [seed.isSuccess, dismissSplash]);
 
   useEffect(() => {
-    const safetyTimer = setTimeout(dismissSplash, 3500);
+    const safetyTimer = setTimeout(dismissSplash, 7000);
     return () => clearTimeout(safetyTimer);
   }, [dismissSplash]);
 
