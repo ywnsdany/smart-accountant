@@ -3,58 +3,26 @@
 import type { Expense, ExpenseFilters } from '@/types';
 import { subMonths, format } from 'date-fns';
 
-const DB_NAME = 'smart-accountant-db';
-const DB_VERSION = 1;
-const STORE_NAME = 'expenses';
-const SEEDED_KEY = '__seeded__';
+const STORAGE_KEY = 'smart_accountant_expenses';
+const SEEDED_KEY = 'smart_accountant_seeded';
 
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        store.createIndex('category', 'category', { unique: false });
-        store.createIndex('date', 'date', { unique: false });
-        store.createIndex('createdAt', 'createdAt', { unique: false });
-      }
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+function loadExpenses(): Expense[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
-function tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  return openDB().then(db => new Promise<T>((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, mode);
-    const store = transaction.objectStore(STORE_NAME);
-    const request = fn(store);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  }));
+function saveExpenses(expenses: Expense[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
 }
 
-function getAllFromStore(): Promise<Expense[]> {
-  return tx('readonly', store => store.getAll());
-}
-
-function addExpense(data: Expense): Promise<Expense> {
-  return tx('readwrite', store => store.put(data)).then(() => data);
-}
-
-function updateExpenseInDB(data: Expense): Promise<Expense> {
-  return tx('readwrite', store => store.put(data)).then(() => data);
-}
-
-function deleteExpenseFromDB(id: string): Promise<void> {
-  return tx('readwrite', store => store.delete(id)).then(() => undefined);
-}
-
-export async function fetchExpenses(filters?: ExpenseFilters): Promise<Expense[]> {
-  let expenses = await getAllFromStore();
+export function fetchExpenses(filters?: ExpenseFilters): Expense[] {
+  let expenses = loadExpenses();
 
   if (filters?.category) {
     expenses = expenses.filter(e => e.category === filters.category);
@@ -94,17 +62,16 @@ export async function fetchExpenses(filters?: ExpenseFilters): Promise<Expense[]
   return expenses;
 }
 
-export async function createExpense(data: {
+export function createExpense(data: {
   amount: number;
   description: string;
   category: string;
   date: string;
   notes?: string;
-}): Promise<Expense> {
+}): Expense {
   const now = new Date().toISOString();
-  const id = crypto.randomUUID();
   const expense: Expense = {
-    id,
+    id: crypto.randomUUID(),
     amount: data.amount,
     description: data.description,
     category: data.category,
@@ -113,32 +80,40 @@ export async function createExpense(data: {
     createdAt: now,
     updatedAt: now,
   };
-  return addExpense(expense);
+  const all = loadExpenses();
+  all.push(expense);
+  saveExpenses(all);
+  return expense;
 }
 
-export async function updateExpense(data: {
+export function updateExpense(data: {
   id: string;
   amount?: number;
   description?: string;
   category?: string;
   date?: string;
   notes?: string;
-}): Promise<Expense> {
-  const expenses = await getAllFromStore();
-  const existing = expenses.find(e => e.id === data.id);
-  if (!existing) throw new Error('المصروف غير موجود');
+}): Expense {
+  const all = loadExpenses();
+  const index = all.findIndex(e => e.id === data.id);
+  if (index === -1) throw new Error('المصروف غير موجود');
 
-  const updated: Expense = {
+  const existing = all[index];
+  all[index] = {
     ...existing,
     ...data,
     notes: data.notes !== undefined ? (data.notes || null) : existing.notes,
     updatedAt: new Date().toISOString(),
   };
-  return updateExpenseInDB(updated);
+  saveExpenses(all);
+  return all[index];
 }
 
-export async function deleteExpense(id: string): Promise<void> {
-  return deleteExpenseFromDB(id);
+export function deleteExpense(id: string): void {
+  const all = loadExpenses();
+  const filtered = all.filter(e => e.id !== id);
+  if (filtered.length === all.length) throw new Error('المصروف غير موجود');
+  saveExpenses(filtered);
 }
 
 function randomBetween(min: number, max: number): number {
@@ -176,7 +151,7 @@ const SAMPLE_TEMPLATES = [
   { description: 'تذاكر طيران', category: '✈️ سفر', amountRange: [300, 1500] },
 ];
 
-export async function generateSeedData(): Promise<Expense[]> {
+export function generateSeedData(): Expense[] {
   const now = new Date();
   const expenses: Expense[] = [];
 
@@ -207,29 +182,19 @@ export async function generateSeedData(): Promise<Expense[]> {
     }
   }
 
-  const db = await openDB();
-  const store = db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME);
-
-  for (const expense of expenses) {
-    store.put(expense);
-  }
-
-  return new Promise((resolve, reject) => {
-    store.transaction.oncomplete = () => resolve(expenses);
-    store.transaction.onerror = () => reject(store.transaction.error);
-  });
+  saveExpenses(expenses);
+  return expenses;
 }
 
-export async function isSeeded(): Promise<boolean> {
+export function isSeeded(): boolean {
   try {
-    const result = localStorage.getItem(SEEDED_KEY);
-    return result === 'true';
+    return localStorage.getItem(SEEDED_KEY) === 'true';
   } catch {
     return false;
   }
 }
 
-export async function markAsSeeded(): Promise<void> {
+export function markAsSeeded(): void {
   try {
     localStorage.setItem(SEEDED_KEY, 'true');
   } catch {
@@ -237,21 +202,16 @@ export async function markAsSeeded(): Promise<void> {
   }
 }
 
-export async function getExpenseCount(): Promise<number> {
-  return tx('readonly', store => store.count());
-}
+export function seedIfEmpty(): boolean {
+  if (isSeeded()) return false;
 
-export async function seedIfEmpty(): Promise<boolean> {
-  const seeded = await isSeeded();
-  if (seeded) return false;
-
-  const count = await getExpenseCount();
-  if (count > 0) {
-    await markAsSeeded();
+  const existing = loadExpenses();
+  if (existing.length > 0) {
+    markAsSeeded();
     return false;
   }
 
-  await generateSeedData();
-  await markAsSeeded();
+  generateSeedData();
+  markAsSeeded();
   return true;
 }

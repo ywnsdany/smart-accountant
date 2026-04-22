@@ -4,14 +4,13 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ExpenseFormDialog } from './expense-form-dialog';
 import { ExpenseFiltersBar } from './expense-filters';
 import { useExpenses, useDeleteExpense } from '@/hooks/use-expenses';
 import { useAppStore } from '@/stores/app-store';
 import { formatCurrency, formatDateShort, CATEGORY_COLORS } from '@/lib/analysis-engine';
-import { Plus, Pencil, Trash2, Wallet, AlertTriangle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Wallet } from 'lucide-react';
 import type { Expense, ExpenseFilters } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -92,7 +91,7 @@ export function ExpensesPage() {
         {isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 rounded-xl" />
+              <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />
             ))}
           </div>
         ) : expenses.length === 0 ? (
@@ -163,7 +162,6 @@ export function ExpensesPage() {
                                 size="icon"
                                 className="h-8 w-8 text-destructive hover:text-destructive"
                                 onClick={() => handleDelete(expense.id)}
-                                disabled={deleteMutation.isPending}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>

@@ -21,7 +21,7 @@ const pageComponents = {
 export default function Home() {
   const { currentPage } = useAppStore();
   const PageComponent = pageComponents[currentPage];
-  const seedMutation = useSeedData();
+  const seed = useSeedData();
   const [showSplash, setShowSplash] = useState(true);
 
   const dismissSplash = useCallback(() => {
@@ -29,38 +29,20 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    seedMutation.mutate();
+    seed.mutate();
   }, []);
 
   useEffect(() => {
-    // Dismiss splash when seed is done + minimum time passed
-    const minSplashTime = new Promise(resolve => setTimeout(resolve, 2200));
-    const seedDone = new Promise(resolve => {
-      if (seedMutation.isIdle || seedMutation.isSuccess) {
-        resolve(true);
-      }
-    });
-
-    const checkSeed = () => {
-      if (seedMutation.isSuccess || seedMutation.isIdle) {
-        dismissSplash();
-      }
-    };
-
-    Promise.race([minSplashTime, seedDone]).then(() => {
-      checkSeed();
-    });
-
-    // Also check when mutation status changes
-    if (seedMutation.isSuccess) {
-      const timer = setTimeout(dismissSplash, 2200);
+    if (seed.isSuccess) {
+      const timer = setTimeout(dismissSplash, 2000);
       return () => clearTimeout(timer);
     }
+  }, [seed.isSuccess, dismissSplash]);
 
-    // Safety timeout
-    const safetyTimer = setTimeout(dismissSplash, 4000);
+  useEffect(() => {
+    const safetyTimer = setTimeout(dismissSplash, 3500);
     return () => clearTimeout(safetyTimer);
-  }, [seedMutation.isSuccess, seedMutation.isIdle, dismissSplash]);
+  }, [dismissSplash]);
 
   return (
     <>

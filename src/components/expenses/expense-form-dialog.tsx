@@ -24,16 +24,17 @@ interface ExpenseFormDialogProps {
 }
 
 export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDialogProps) {
-  const [amount, setAmount] = useState(expense?.amount?.toString() || '');
-  const [description, setDescription] = useState(expense?.description || '');
-  const [category, setCategory] = useState(expense?.category || '');
-  const [date, setDate] = useState<Date | undefined>(expense ? new Date(expense.date) : new Date());
-  const [notes, setNotes] = useState(expense?.notes || '');
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [notes, setNotes] = useState('');
 
-  const createMutation = useCreateExpense();
-  const updateMutation = useUpdateExpense();
+  const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
   const isEditing = !!expense;
-  const isPending = createMutation.isPending || updateMutation.isPending;
+
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,26 +49,20 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
     };
 
     if (isEditing && expense) {
-      updateMutation.mutate(
-        { id: expense.id, ...data },
-        { onSuccess: () => handleClose() }
-      );
+      updateExpense.mutate({ id: expense.id, ...data });
     } else {
-      createMutation.mutate(data, {
-        onSuccess: () => handleClose(),
-      });
+      createExpense.mutate(data);
     }
+    handleClose();
   };
 
   const handleClose = () => {
-    if (!isPending) {
-      setAmount('');
-      setDescription('');
-      setCategory('');
-      setDate(new Date());
-      setNotes('');
-      onOpenChange(false);
-    }
+    setAmount('');
+    setDescription('');
+    setCategory('');
+    setDate(new Date());
+    setNotes('');
+    onOpenChange(false);
   };
 
   return (
@@ -162,11 +157,11 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               إلغاء
             </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? 'جاري الحفظ...' : isEditing ? 'تحديث' : 'إضافة'}
+            <Button type="submit">
+              {isEditing ? 'تحديث' : 'إضافة'}
             </Button>
           </DialogFooter>
         </form>
